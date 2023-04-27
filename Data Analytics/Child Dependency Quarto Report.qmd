@@ -1,0 +1,268 @@
+---
+title: "Unicef" 
+subtitle: "Child Dependency Quatro Report - 2023"
+author: "Shakthi Rishi R V - 22264249 - DCU"
+date: last-modified
+date-format: "DD-MM-YYYY"
+description: "This Dashboard compares the Child Dependency Ratio with Gross National Income, Population and GDP per Capita."
+title-block-banner: "#27445C"
+format: 
+  html:
+    embed-resources: true
+    smooth-scroll: true
+    theme: cosmo
+    fontcolor: black
+    toc: true
+    toc-location: left
+    toc-title: Report Flow
+    toc-depth: 3
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    code-link: true
+    number-sections: true
+css: styles.css 
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+## Executive Summary
+ All the data used in this report is from **UNICEF**.
+ 
+ Check out the Tableau version of this report - [Click Here](https://public.tableau.com/views/ChildDependencyDashboard/Dshboard2?:language=en-GB&publish=yes&:display_count=n&:origin=viz_share_link) 
+
+### Key Highlights
+ 
+
+- There is a **Correlation** between the Child Dependency Ratio and Population, Gross National Income & GDP per Capita. 
+
+- As the **population grows**, the **child dependency ratio reduces** which clearly indicates that there are more adults now than before to take care of children in a macro view. 
+
+- The **Child dependency ratio decreases** with **increase in Gross National Income, GDP per Capita and Population**. Now, it helps to understand that the individual Income of people also plays a crucial factor alongside population.
+
+- The **more the income of people** across population growth, the **lesser the child dependency** is. This also means that the adult individuals are now **more financially stable** and capable of taking responsibility for more children than before, which reduces the child dependency significantly.
+
+- Precisely, countries in *Africa* tend to have **Higher** Child Dependency comparitively, the possible reasons could be their:
+
+  **- Low GDP per Capita** 
+  
+  **- Slow Economic Growth of the Nation**
+  
+  **- Lesser Gross National Income**
+
+
+## The Child Dependency Story
+
+### Libraries & Data Preparation - Code
+
+```{r}
+#| label: setup
+#| include: true
+#| echo: true
+library(ggplot2)
+library(ggthemes)
+library(magrittr)
+library(dplyr)
+library("tidyverse") # load dplyr, ggplot2, stringr, etc.
+library("sf") # working with geographic simple features in R
+library("rnaturalearth") # World map data from Natural Earth
+library("countrycode") # get ISO code from country names
+library("ggrepel") # "ggplot2" extension for overlapping text labels
+library(readr)
+unicef_metadata <- read_csv("~/Documents/DCU MiM Course Work/Data Analytics/mt5000importantdataandinstructionstableauassignmen/unicef_metadata.csv")
+unicef_indicator_2 <- read_csv("~/Documents/DCU MiM Course Work/Data Analytics/mt5000importantdataandinstructionstableauassignmen/unicef_indicator_2.csv")
+metadata_from_2009<- unicef_metadata %>% 
+  filter(year>2008)
+world <- ne_countries(scale = "small", returnclass = "sf")
+countries_obs_value<- world %>%
+   select(geometry, name, iso_a3) %>%
+     left_join(unicef_indicator_2, by = c("iso_a3" = "alpha_3_code")) %>%
+     filter(time_period==2023) %>%
+     filter(sex=="Total")
+countries_obs_2023 <- unicef_indicator_2  %>%
+      filter(time_period==2023) %>%
+      filter(sex=="Total")
+Countries_over80 <- countries_obs_2023 %>%
+     filter(obs_value>80)
+Countires_under20 <- countries_obs_2023 %>%
+     filter(obs_value<20)
+```
+
+### World Statistics
+
+```{r}
+#| echo: true
+world %>%
+ filter(admin != "Antarctica") %>%
+ st_transform(crs = "+proj=robin") %>%
+ ggplot() +
+ geom_sf(color = "darkgrey") +
+ geom_sf(data = countries_obs_value, aes(fill = obs_value)) +
+ theme_fivethirtyeight() +
+ theme(plot.title = element_text(face = "bold"),
+   axis.text.x = element_blank(), legend.position = "bottom") +
+ labs(title = "World Map - Child Dependency 2023",
+   subtitle = "Graphical Representation using Simple Features Library (SF)",
+   x = NULL, y = NULL, caption = "Source: Unicef - Child Dependency Data") 
+```
+- As per the above World Map, it is noted that most countries in *Africa* tend to have **High** Child Dependency and countries like  *South Korea, Japan, Singapore, UAE, Taiwan etc.* have **Low** Child Dependency. 
+
+
+
+### Countries with High Child Dependency
+
+- Countries in *Africa* tend to have **Higher** Child dependency ratios above 80 Comparitively (from Below Bar Chart).
+
+
+```{r}
+#| echo: true
+ggplot(Countries_over80, aes(x = obs_value , y = country )) + 
+geom_col(aes(fill=country), width = 0.5) +  
+theme_minimal()+
+theme(axis.text.x = element_text(angle=65, vjust=0.6), legend.position = "bottom") +
+labs(title="Countries with High Child Dependency 2023", 
+ subtitle="Bar Chart - Country x Child Dependency (>80)", 
+ caption="Source: Unicef - Child Dependency Data",x="Child Dependency Ratio", y="Country") +
+scale_fill_discrete(name = "Countries") +
+theme(legend.title = element_text(colour="Black", size=10, face="bold"))
+```
+
+
+### Countries with Low Child Dependency
+
+- Countries like *Singapore, Japan, UAE, Italy, Hong Kong* etc. tend to have **Lower** Child dependency ratios comparitively, (from Bottom 5 Countries Bar Chart Below) less than 20. The possible reasons could be their High GDP per Capita, High economic growth and High gross national income.
+
+
+```{r}
+#| echo: true
+ggplot(Countires_under20, aes(x = obs_value , y = country)) + 
+geom_col(aes(fill=country), width = 0.5)+
+theme_minimal()+
+theme(axis.text.x = element_text(angle=65, vjust=0.6),legend.position = "bottom") +
+labs(title="Countries with Low Child Dependency 2023",
+ subtitle="Bar Chart - Country x Child Dependency (<20)", 
+ caption="Source: Unicef - Child Dependency Data",x="Child Dependency Ratio", y="Country")+
+scale_fill_discrete(name = "Countries")+ 
+theme(legend.title = element_text(colour="Black", size=10, face="bold"))
+```
+
+### World Child Dependency Ratio Trend
+
+
+```{r}
+#| echo: true
+unicef_indicator_2 %>% 
+ group_by(time_period)%>% 
+   summarise(s_obs=sum(obs_value)) %>%
+     ggplot(aes(time_period,s_obs), color="seagreen4")+
+     geom_point()+
+     geom_smooth(method = 'lm',color = "violet")+
+     scale_y_continuous(labels = scales::label_number_si())+
+      labs(title="World Child Dependency Trend Over the Years", 
+      subtitle="Child Dependency Ratio Scatter Plot with Regression Line", 
+      caption="Source: Unicef Metadata",x="Year", y="Child Dependency Ratio")+
+    scale_color_fivethirtyeight()+
+    theme_fivethirtyeight()
+```
+**Insights:**
+
+- Child Dependency steadily **Decreases** over the years. 
+
+
+### Gross National Income Trend
+
+
+```{r}
+#| echo: true
+ggplot(metadata_from_2009, aes(x=year)) + 
+geom_line(aes(y=`GNI (current US$)`),color="limegreen") + 
+ labs(title="Gross National Income Time Series Chart", 
+ subtitle="GNI x Year from 2009", caption="Source: Unicef Metadata", 
+ y="Gross National Income", x="Year")+ 
+scale_y_continuous(labels = scales::label_number_si()) +
+scale_color_fivethirtyeight()+
+theme_fivethirtyeight()
+```
+**Insights:*
+
+- GNI steadily **increases** over the years. 
+
+- Child Dependency reduces with Increase in Gross National Income. 
+
+
+
+### Population Growth
+
+
+```{r}
+#| echo: true
+metadata_from_2009 %>% 
+ group_by(year)%>% 
+   summarise(s_pop=sum(`Population, total`)) %>%
+     ggplot(aes(year,s_pop), color="seagreen4")+
+     geom_line(color="blue")+
+     scale_y_continuous(labels = scales::label_number_si())+
+      labs(title="World Population Time Series Chart", 
+      subtitle="Population Trend from 2009", 
+      caption="Source: Unicef Metadata",x="Year", y="Population")+
+    scale_color_fivethirtyeight()+
+    theme_fivethirtyeight()
+```
+**Insights:**
+
+- Population **increases** rapidly over the years with **Decreasing Child Dependency Ratio**. 
+
+### Gross National Income with Population
+
+
+```{r}
+#| echo: true
+ metadata_from_2009 %>% 
+ group_by(year)%>% 
+ ggplot(aes(y=`Population, total`, x=`GNI (current US$)`))+
+    geom_point()+
+  theme_clean()+
+   geom_smooth(method = 'lm', ,color = "green2")+
+  
+  labs(title="Gross National Income with Population Scatter Plot", 
+      subtitle="GNI x Population Scatter Plot with Regression Line from 2009", 
+      caption="Source: Unicef Metadata",x="Gross National Income", y="Population")+
+  scale_y_continuous(labels = scales::label_number_si()) +
+  scale_x_continuous(labels = scales::label_number_si()) +
+    scale_color_fivethirtyeight()
+    
+```
+**Insights:**
+
+- Population **Increases** rapidly over the years with **Increasing Gross National Income**.
+
+- The Increasing trend in both Population and Gross National Income over the years highlights that the economic situation is constantly improving which is **inversly proportional** to the Child Dependency ratio, which is in decreasing trend.
+
+
+### GDP Per Capita
+
+- Sum of gross value added by all resident producers in the economy plus any product taxes (less subsidies) not included in the valuation of output, divided by mid-year population.
+
+
+```{r}
+#| echo: true
+metadata_from_2009 %>% 
+ group_by(year)%>% 
+ggplot(aes(x=year)) + 
+geom_point(aes(y=`GDP per capita (constant 2015 US$)`),color="violetred") +
+labs(title="GDP Per Capita Scatterplot",
+     subtitle="GDP Per Capita x Year from 2009",
+     caption="Source: Unicef Metadata",
+     y="GDP Per Capita", x="Year") + 
+scale_y_continuous(labels = scales::label_number_si()) +
+    scale_color_fivethirtyeight()+
+    theme_fivethirtyeight()
+```
+**Insights:**
+
+- As **GDP Per Capita Increases** over the years with **Decreasing Child Dependency Ratio**.
+
+
+
